@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+
+<html lang="en-US">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>scroll-road</title>
+  <script src="../jsgame0.js"></script>
+  <style type="text/css" media="screen">
+body {
+  background-color: white;
+  color: black;
+}
+.hidden {
+  display: none;
+}
+#original {
+  margin-left: 1em;
+}
+  </style>
+</head>
+
+<body>
+<section id="imageLoader" class="hidden">
+  <img class="hidden" src="images/car.png" alt="car">
+</section>
+
+<main>
+<h1>scroll-road</h1>
+
+<canvas id="screen">
+The game screen appears here if your browser supports the Canvas API.
+</canvas>
+<section id="controls">
+  <button type="button" id="reset">Reset</button>
+  <button type="button" id="pause">Pause</button>
+</section>
+
+<h2>Attribution</h2>
+
+<p><a href="https://wireframe.raspberrypi.org/issues/31">Source Code: Make a Spy Hunter-style scrolling road, pages 40-41, by Mac Bowley</a>.</p>
+
+<p>Licensed under <a href="https://creativecommons.org/licenses/by-nc-sa/3.0/legalcode">Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported</a>.</p>
+
+<h2>Original Python code</h2>
+
+<pre id="original"><code>
+import random
+
+# Set the screen dimensions
+WIDTH = 540
+HEIGHT = 540
+
+# Colour variables
+c_grass = (0, 153, 76)
+c_road = (204, 136, 0)
+
+# Lists to hold pieces
+road = [] # To be drawn on screen
+queue = [] # To be added when scrolling
+
+# Height of my road pieces
+block_size = 2
+
+# Player actor and a speed to move it at
+player = Actor(&quot;car.png&quot;, (int(WIDTH/2 - 16), 390), anchor=(&quot;left&quot;, &quot;top&quot;))
+speed = 5
+
+# Initial population of the road and queue
+buffer = int(WIDTH/4)
+for i in range(HEIGHT-block_size, -block_size, -block_size):
+    block = Rect((buffer, i), (int(WIDTH/2), block_size))
+    road.append(block)
+for i in range(0, 200, block_size):
+    block = Rect((buffer, 0), (int(WIDTH/2), block_size))
+    queue.append(block)
+
+# Function that will scroll the road
+def scroll_road():
+    global road, queue
+    for piece in road: # Move all the pieces down by 2
+        piece.top += block_size
+    road.append(queue.pop(0)) # Move piece from queue to road
+    road.pop(0) # Remove the bottom road piece
+    road[-1].top = 0 # An index of -1 is the last item in a list
+    if len(queue) &lt; 5:
+        update_path() # If the queue is getting low update the path
+
+# Scroll the road at a set interval - 60 scrolls (frames) per second
+frame_rate = 1/60
+clock.schedule_interval(scroll_road, frame_rate)
+
+# Road should not go any closer than 50 pixels to the edge
+min_buffer = 50
+
+# Make sure the road doesn&#x27;t exceed my buffer
+def clamp_road(x):
+    if x &lt; min_buffer:
+        x = min_buffer
+    if x &gt; int(WIDTH/2) - min_buffer:
+        x = int(WIDTH/2) - min_buffer
+    return x
+
+min_turn = 200
+turn_gap = 200
+
+def update_path():
+    global road, queue
+    choice = random.randint(0, 1) # Right or left turn
+    current_pos_x = queue[-1].left
+    if choice == 0:
+        # Turn left
+        modifier = -1
+        if current_pos_x - min_turn &gt; min_buffer:
+            turn = random.randint(min_turn, current_pos_x - 5)
+        else:
+            turn = current_pos_x - min_buffer
+    else:
+        # Turn right
+        modifier = 1
+        if int(WIDTH/2) - current_pos_x - min_buffer &gt; min_turn:
+            turn = random.randint(min_turn, int(WIDTH/2) - current_pos_x - min_buffer)
+        else:
+            turn = int(WIDTH/2) - current_pos_x - min_buffer
+    # Choose how long my turn will take
+    height = random.randint(200, 400)
+    # Move a percentage of the turn for each block in height
+    for y in range(block_size, height, block_size):
+        x = turn/height * y * modifier
+        new_x = clamp_road(current_pos_x + x)
+        block = Rect((new_x, 0), (int(WIDTH/2), block_size))
+        queue.append(block)
+    # Find the last x co-ordinate of the turn
+    current_pos_x = queue[-1].left
+    # Add some straight to the road
+    for i in range(0, turn_gap, block_size):
+        block = Rect((current_pos_x, 0), (int(WIDTH/2), block_size))
+        queue.append(block)
+
+def update():
+    # Player movement
+    global player
+    player_momentum = 0
+    if keyboard.left:
+        player_momentum = -speed
+    elif keyboard.right:
+        player_momentum = speed
+    else:
+        player_momentum = 0
+    new_pos = player.x + player_momentum
+    collision = False
+    for i in range(16):
+        if new_pos &gt; road[75+i].left and new_pos + player.width &lt; road[75+i].x + road[75+i].width:
+            collision = True
+    if collision == True:
+        player.x = new_pos
+
+def draw():
+    screen.fill(c_grass)
+    for piece in road:
+        screen.draw.rect(piece, c_road)
+    player.draw()
+</code></pre>
+</main>
+
+<script>
+// Set the screen dimensions
+WIDTH = 540;
+HEIGHT = 540;
+
+// Colour variables
+const C_GRASS = [0, 153, 76];
+const C_ROAD = [204, 136, 0];
+
+// Lists to hold pieces
+var road, queue, player;
+
+// Height of my road pieces
+const BLOCK_SIZE = 2;
+
+const SPEED = 5;
+
+function reset() {
+  // Player actor and a speed to move it at
+  player = new Actor("car");
+  player.anchor = ["left", "top"];
+  player.pos = [Math.trunc((WIDTH / 2) - 16), 390];
+
+  // Initial population of the road and queue
+  road = []; // To be drawn on screen
+  queue = []; // To be added when scrolling
+  const buffer = Math.trunc(WIDTH / 4);
+  for (let i = HEIGHT - BLOCK_SIZE; i > -BLOCK_SIZE; i -= BLOCK_SIZE) {
+    road.push(new Rect([buffer, i], [Math.trunc(WIDTH / 2), BLOCK_SIZE]));
+  }
+  for (let i = 0; i < 200; i += BLOCK_SIZE) {
+    queue.push(new Rect([buffer, 0], [Math.trunc(WIDTH / 2), BLOCK_SIZE]));
+  }
+
+  // Scroll the road at a set interval - 60 scrolls (frames) per second
+  const frame_rate = 1 / 60;
+  clock.schedule_interval(scroll_road, frame_rate);
+}
+
+// Function that will scroll the road
+function scroll_road() {
+  for (let piece of road) { // Move all the pieces down by 2
+    piece.top += BLOCK_SIZE;
+  }
+  road.push(queue.shift()); // Move piece from queue to road
+  road.shift(); // Remove the bottom road piece
+  road[road.length-1].top = 0; // An index of -1 is the last item in a list
+  if (queue.length < 5) {
+    update_path(); // If the queue is getting low update the path
+  }
+}
+
+// Road should not go any closer than 50 pixels to the edge
+const MIN_BUFFER = 50;
+
+// Make sure the road doesn't exceed my buffer
+function clamp_road(x) {
+  if (x < MIN_BUFFER) {
+    x = MIN_BUFFER;
+  }
+  if (x > (Math.trunc(WIDTH / 2) - MIN_BUFFER)) {
+    x = Math.trunc(WIDTH / 2) - MIN_BUFFER;
+  }
+  return x;
+}
+
+/*
+ * Return a random integer N such that min <= N < max.
+ */
+function getRandomInteger(min, max) {
+  min = Math.ceil(min);
+  max = Math.floor(max);
+  return Math.floor((Math.random() * (max - min)) + min);
+}
+
+function update_path() {
+  const MIN_TURN = 200;
+  const TURN_GAP = 200;
+  let choice = getRandomInteger(0, 2), // Right or left turn
+      current_pos_x = queue[queue.length-1].left,
+      // Choose how long my turn will take
+      height = getRandomInteger(200, 401),
+      modifier, turn;
+  if (choice === 0) {
+    // Turn left
+    modifier = -1;
+    if ((current_pos_x - MIN_TURN) > MIN_BUFFER) {
+      turn = getRandomInteger(MIN_TURN, current_pos_x - 5 + 1);
+    }
+    else {
+      turn = current_pos_x - MIN_BUFFER;
+    }
+  }
+  else {
+    // Turn right
+    modifier = 1;
+    if ((Math.trunc(WIDTH / 2) - current_pos_x - MIN_BUFFER) > MIN_TURN) {
+      turn = getRandomInteger(MIN_TURN, Math.trunc(WIDTH / 2) - current_pos_x - MIN_BUFFER + 1);
+    }
+    else {
+      turn = Math.trunc(WIDTH / 2) - current_pos_x - MIN_BUFFER;
+    }
+  }
+  // Move a percentage of the turn for each block in height
+  for (let y = BLOCK_SIZE; y < height; y += BLOCK_SIZE) {
+    let x = turn / height * y * modifier,
+        new_x = clamp_road(current_pos_x + x),
+        block = new Rect([new_x, 0], [Math.trunc(WIDTH / 2), BLOCK_SIZE]);
+    queue.push(block);
+  }
+  // Find the last x co-ordinate of the turn
+  current_pos_x = queue[queue.length-1].left;
+  // Add some straight to the road
+  for (let i = 0; i < TURN_GAP; i += BLOCK_SIZE) {
+    queue.push(new Rect([current_pos_x, 0], [Math.trunc(WIDTH / 2), BLOCK_SIZE]));
+  }
+}
+
+function update() {
+  // Player movement
+  let player_momentum = 0;
+  if (keyboard[keys.LEFT]) {
+    player_momentum = -SPEED;
+  }
+  else if (keyboard[keys.RIGHT]) {
+    player_momentum = SPEED;
+  }
+  let new_pos = player.posx + player_momentum,
+      collision = false;
+  for (let i = 0; i < 16; i++) {
+    if ((new_pos > road[75+i].left) && ((new_pos + player.width) < (road[75+i].x + road[75+i].width))) {
+      collision = true;
+    }
+  }
+  if (collision) {
+    player.posx = new_pos;
+  }
+}
+
+function draw() {
+  screen.fill(C_GRASS);
+  for (let piece of road) {
+    screen.draw.rect(piece, C_ROAD);
+  }
+  player.draw();
+}
+
+window.addEventListener('load', (event) => {
+  images.LOAD('#imageLoader img');
+  reset();
+  screen.set_mode('#screen', '#reset', '#pause');
+});
+</script>
+</body>
+
+</html>
